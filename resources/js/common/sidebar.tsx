@@ -16,14 +16,19 @@ export const SIDEBAR_ITEMS: INavGroup[] = [
         href: route(ROUTES.ADMIN.USERS.INDEX),
         icon: Users,
       },
+      {
+        title: "Assessments",
+        href: route("assessments.index"),
+        icon: Users,
+      },
     ],
   },
 ];
 
-export const SIDEBAR_ITEMS_FOOTER = [
-  {
-    title: "Repository",
-    href: "https://github.com/laravel/react-starter-kit",
-    icon: Folder,
-  },
-];
+// export const SIDEBAR_ITEMS_FOOTER = [
+//   {
+//     title: "Repository",
+//     href: "https://github.com/laravel/react-starter-kit",
+//     icon: Folder,
+//   },
+// ];

@@ -41,7 +41,7 @@ export default function AppSidebarLayout({
             "px-2.5": !showHeader,
           })}
         >
-          {showHeader && (
+          {/* {showHeader && (
             <div className="flex flex-col gap-1 px-5 sm:gap-2 sm:px-2.5">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <header className="flex items-center gap-2">
@@ -64,7 +64,7 @@ export default function AppSidebarLayout({
                 <p className="text-muted-foreground text-sm sm:text-base">{description}</p>
               )}
             </div>
-          )}
+          )} */}
           <div className={cn("flex-1 overflow-hidden p-5 sm:p-2.5", className)}>{children}</div>
         </main>
       </AppContent>

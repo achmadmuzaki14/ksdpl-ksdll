@@ -3,6 +3,10 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use App\Models\Assessment;
+use App\Models\Cooperation;
+use App\Observers\AssessmentObserver;
+use App\Observers\CooperationObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Assessment::observe(AssessmentObserver::class);
+        Cooperation::observe(CooperationObserver::class);
     }
 }

@@ -3,6 +3,9 @@
 use App\Http\Controllers\Admin\Settings\PasswordController;
 use App\Http\Controllers\Admin\Settings\ProfileController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\ResponseController;
+use App\Http\Controllers\Admin\AssessmentReviewController;
+use App\Http\Controllers\Admin\VerificationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -31,4 +34,19 @@ Route::middleware(['auth', 'verified', 'role:admin', 'active'])->group(function 
     Route::get('admin/settings/appearance', function () {
         return Inertia::render('admin/settings/appearance');
     })->name('admin.appearance');
+
+});
+
+// new
+Route::patch('/responses/{response}', [ResponseController::class, 'update'])
+->name('responses.update');
+
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    // halaman review admin untuk 1 assessment (status submitted)
+    Route::get('/assessments/{assessment}/review', [AssessmentReviewController::class, 'show'])
+        ->name('assessments.review');
+
+    // upsert verification per response
+    Route::post('/responses/{response}/verification', [VerificationController::class, 'upsert'])
+        ->name('responses.verification.upsert');
 });

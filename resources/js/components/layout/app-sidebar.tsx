@@ -36,7 +36,7 @@ export const AppSidebar = memo(() => {
       </SidebarContent>
 
       <SidebarFooter>
-        <NavFooter items={SIDEBAR_ITEMS_FOOTER} />
+        {/* <NavFooter items={SIDEBAR_ITEMS_FOOTER} /> */}
         <NavUser />
       </SidebarFooter>
     </Sidebar>

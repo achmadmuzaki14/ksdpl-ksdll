@@ -9,6 +9,13 @@ export const ROUTES = {
       UPDATE: "admin.users.update",
       DESTROY: "admin.users.destroy",
     },
+    ASSESSMENTS: {
+      INDEX: "assessments.index",
+      CREATE: "assessments.create",
+      // EDIT: "admin.users.edit",
+      // UPDATE: "admin.users.update",
+      // DESTROY: "admin.users.destroy",
+    },
     SETTINGS: {
       PROFILE: {
         EDIT: "admin.profile.edit",
