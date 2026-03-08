@@ -183,6 +183,12 @@ export default function AssessmentShow({
             </div>
 
             <div className="flex gap-3">
+              <Link
+                  href={route("assessments.dimension1", assessment.id)}
+                  className="rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50"
+                >
+                  Dimensi 1
+              </Link>
 
               {permissions?.can_edit && (
                 <Link
