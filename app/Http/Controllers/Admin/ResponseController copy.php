@@ -20,43 +20,36 @@ class ResponseController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $response) {
-
             /*
             |--------------------------------------------------------------------------
             | Jika indikator N/A
             |--------------------------------------------------------------------------
             */
-
             if ($response->is_not_applicable) {
-
                 $response->update([
                     'score_self' => null,
                     'justification' => null,
                     'is_complete' => true,
                 ]);
 
-                $this->resetVerificationIfNeeded($response);
+                // reset verification jika user revisi
+                if ($response->verification) {
+                    $response->verification()->delete();
+                }
 
                 return;
             }
 
             /*
             |--------------------------------------------------------------------------
-            | Validasi skor
+            | Jika bukan N/A
             |--------------------------------------------------------------------------
             */
-
             if (($validated['score_self'] ?? null) === null) {
                 throw ValidationException::withMessages([
                     'score_self' => 'Skor wajib diisi (1–4).',
                 ]);
             }
-
-            /*
-            |--------------------------------------------------------------------------
-            | Update jawaban user
-            |--------------------------------------------------------------------------
-            */
 
             $response->update([
                 'score_self' => $validated['score_self'],
@@ -66,26 +59,14 @@ class ResponseController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | Reset verification jika revisi
+            | Reset verification jika user revisi
             |--------------------------------------------------------------------------
             */
-
-            $this->resetVerificationIfNeeded($response);
+            if ($response->verification) {
+                $response->verification()->delete();
+            }
         });
 
         return back()->with('success', 'Jawaban berhasil diperbarui.');
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reset verification hanya jika perlu revisi
-    |--------------------------------------------------------------------------
-    */
-
-    private function resetVerificationIfNeeded(Response $response): void
-    {
-        if ($response->verification?->status === 'need_revision') {
-            $response->verification()->delete();
-        }
     }
 }

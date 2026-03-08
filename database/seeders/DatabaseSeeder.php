@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'admin@example.com'],
             [
-                'name' => 'Super Admin',
+                'name' => 'Evaluator',
                 'password' => Hash::make('password'),
                 'role' => 'admin',
                 'is_active' => true,
@@ -42,7 +42,7 @@ class DatabaseSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'user1@ksdpl.local'],
             [
-                'name' => 'Evaluator Satu',
+                'name' => 'User Satu',
                 'password' => Hash::make('password'),
                 'role' => 'user',
                 'is_active' => true,
@@ -52,7 +52,7 @@ class DatabaseSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'user2@ksdpl.local'],
             [
-                'name' => 'Evaluator Dua',
+                'name' => 'User Dua',
                 'password' => Hash::make('password'),
                 'role' => 'user',
                 'is_active' => true,

@@ -19,7 +19,7 @@ class AssessmentController extends Controller
 
         $query = Assessment::withCount('cooperations');
 
-        // Jika bukan admin -> hanya lihat miliknya
+        // jika bukan admin -> hanya lihat miliknya
         if ($user->role !== 'admin') {
             $query->where('created_by', $user->id);
         }
@@ -34,18 +34,19 @@ class AssessmentController extends Controller
                     'province' => $a->province,
                     'regency_city' => $a->regency_city,
                     'status' => $a->status,
-
-                    // scoring v2
-                    'readiness_score' => $a->readinessScore(),
-                    'readiness_category' => $a->readinessCategory(),
-                    'maturity_score' => $a->maturityScore(),
-                    'maturity_category' => $a->maturityCategory(),
-
+                    'overall_score' => $a->overallScore(),
                     'cooperations_count' => $a->cooperations_count,
-                    'dimension1_progress' => $a->dimension1Progress(),
+                    'dimension1_progress' => [
+                        'completed' => $a->responses()
+                            ->whereNull('cooperation_id')
+                            ->where('is_complete', true)
+                            ->count(),
+                        'total' => $a->responses()
+                            ->whereNull('cooperation_id')
+                            ->count(),
+                    ],
                 ];
-            })
-            ->values();
+            });
 
         return Inertia::render('Assessments/Index', [
             'assessments' => $assessments,
@@ -54,7 +55,6 @@ class AssessmentController extends Controller
             ],
         ]);
     }
-
     /*
     |--------------------------------------------------------------------------
     | Create
@@ -108,63 +108,42 @@ class AssessmentController extends Controller
             'cooperations.responses.verification',
         ]);
 
-        $coops = $assessment->cooperations
-            ->map(function ($c) {
-                $score = $c->maturityScore();
+        $coops = $assessment->cooperations->map(function ($c) {
+            $score = $c->maturityScore();
 
-                return [
-                    'id' => $c->id,
-                    'title' => $c->title,
-                    'partner_name' => $c->partner_name,
-                    'type' => $c->type,
-
-                    // score per cooperation (dimensi 2-4)
-                    'maturity_score' => $score,
-                    'category' => $c->maturityCategory(),
-
-                    // detail dimensi agar UI bisa menampilkan breakdown
-                    'dimension_2_score' => $c->convertedScore(2),
-                    'dimension_3_score' => $c->convertedScore(3),
-                    'dimension_4_score' => $c->convertedScore(4),
-                ];
-            })
-            ->values();
+            return [
+                'id' => $c->id,
+                'title' => $c->title,
+                'partner_name' => $c->partner_name,
+                'type' => $c->type,
+                'maturity_score' => $score,
+                'category' => $score === null ? null : $this->categoryFromScore($score),
+            ];
+        })->values();
 
         $user = auth()->user();
 
         return Inertia::render('Assessments/Show', [
-            'assessment' => [
-                'id' => $assessment->id,
-                'year' => $assessment->year,
-                'province' => $assessment->province,
-                'regency_city' => $assessment->regency_city,
-                'status' => $assessment->status,
-            ],
-
+            'assessment' => $assessment->only([
+                'id',
+                'year',
+                'province',
+                'regency_city',
+                'status',
+            ]),
             'analytics' => [
-                // Bagian A - Dimensi 1
-                'readiness' => [
-                    'score' => $assessment->readinessScore(),
-                    'category' => $assessment->readinessCategory(),
-                    'dimension_1_avg_score' => $assessment->dimension1AvgScore(),
-                    'dimension_1_converted_score' => $assessment->dimension1ConvertedScore(),
-                ],
+                'dim1' => $assessment->dimension1ConvertedScore(),
+                'dim2' => $assessment->dimension2ConvertedScore(),
+                'dim3' => $assessment->dimension3ConvertedScore(),
+                'dim4' => $assessment->dimension4ConvertedScore(),
 
-                // Bagian B - Dimensi 2,3,4
-                'maturity' => [
-                    'score' => $assessment->maturityScore(),
-                    'category' => $assessment->maturityCategory(),
-                    'dimension_2_converted_score' => $assessment->dimension2ConvertedScore(),
-                    'dimension_3_converted_score' => $assessment->dimension3ConvertedScore(),
-                    'dimension_4_converted_score' => $assessment->dimension4ConvertedScore(),
-                ],
+                'overall_score' => $assessment->overallScore(),
+                'overall_category' => $assessment->overallCategory(),
 
                 'cooperations_count' => $assessment->cooperations->count(),
                 'cooperation_distribution' => $assessment->cooperationCategoryDistribution(),
             ],
-
             'cooperations' => $coops,
-
             'permissions' => [
                 'can_submit' => $user?->can('submit', $assessment) ?? false,
                 'can_verify' => $user?->can('verify', $assessment) ?? false,
@@ -176,7 +155,7 @@ class AssessmentController extends Controller
                 'is_admin' => ($user?->role === 'admin'),
                 'can_review' => $user?->can('review', $assessment) ?? false,
 
-                // tambahan workflow
+                // tambahan yang lebih akurat untuk UI workflow
                 'has_editable_responses' => $assessment->hasEditableResponses(),
                 'has_revision_requests' => $assessment->hasRevisionRequests(),
             ],
@@ -201,58 +180,41 @@ class AssessmentController extends Controller
 
         $user = auth()->user();
 
-        $responses = $assessment->responses
-            ->map(function ($response) use ($user) {
-                return [
-                    'id' => $response->id,
-                    'assessment_id' => $response->assessment_id,
-                    'cooperation_id' => $response->cooperation_id,
-                    'indicator_definition_id' => $response->indicator_definition_id,
-
-                    'score_self' => $response->score_self,
-                    'is_not_applicable' => $response->is_not_applicable,
-                    'justification' => $response->justification,
-                    'evidence_links' => $response->evidence_links,
-                    'is_complete' => $response->is_complete,
-
-                    'can_edit' => $user?->can('update', $response) ?? false,
-
-                    'indicator' => $response->indicator ? [
-                        'id' => $response->indicator->id,
-                        'dimension' => $response->indicator->dimension,
-                        'code' => $response->indicator->code,
-                        'title' => $response->indicator->title,
-                    ] : null,
-
-                    'verification' => $response->verification ? [
-                        'id' => $response->verification->id,
-                        'status' => $response->verification->status,
-                        'score_verified' => $response->verification->score_verified,
-                        'verifier_note' => $response->verification->verifier_note,
-                        'updated_at' => $response->verification->updated_at?->toISOString(),
-                    ] : null,
-                ];
-            })
-            ->values();
+        $responses = $assessment->responses->map(function ($response) use ($user) {
+            return [
+                'id' => $response->id,
+                'assessment_id' => $response->assessment_id,
+                'cooperation_id' => $response->cooperation_id,
+                'indicator_definition_id' => $response->indicator_definition_id,
+                'score_self' => $response->score_self,
+                'is_not_applicable' => $response->is_not_applicable,
+                'justification' => $response->justification,
+                'evidence_links' => $response->evidence_links,
+                'is_complete' => $response->is_complete,
+                'can_edit' => $user?->can('update', $response) ?? false,
+                'indicator' => $response->indicator ? [
+                    'id' => $response->indicator->id,
+                    'dimension' => $response->indicator->dimension,
+                    'code' => $response->indicator->code,
+                    'title' => $response->indicator->title,
+                ] : null,
+                'verification' => $response->verification ? [
+                    'id' => $response->verification->id,
+                    'status' => $response->verification->status,
+                    'score_verified' => $response->verification->score_verified,
+                    'verifier_note' => $response->verification->verifier_note,
+                    'updated_at' => $response->verification->updated_at?->toISOString(),
+                ] : null,
+            ];
+        })->values();
 
         return Inertia::render('Assessments/Dimension1', [
-            'assessment' => [
-                'id' => $assessment->id,
-                'year' => $assessment->year,
-                'status' => $assessment->status,
-            ],
-
+            'assessment' => $assessment->only([
+                'id',
+                'year',
+                'status',
+            ]),
             'responses' => $responses,
-
-            'analytics' => [
-                'readiness' => [
-                    'score' => $assessment->readinessScore(),
-                    'category' => $assessment->readinessCategory(),
-                    'dimension_1_avg_score' => $assessment->dimension1AvgScore(),
-                    'dimension_1_converted_score' => $assessment->dimension1ConvertedScore(),
-                ],
-                'progress' => $assessment->dimension1Progress(),
-            ],
 
             // backward-compatible untuk UI lama
             'can_edit' => $responses->contains(fn ($r) => $r['can_edit'] === true),
@@ -326,15 +288,15 @@ class AssessmentController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Helper: kategori kematangan cooperation (0-100)
+    | Helper: kategori dokumen (skala 0-100)
     |--------------------------------------------------------------------------
     */
     private function categoryFromScore(float $score): string
     {
-        if ($score >= 85) return 'Transformative';
-        if ($score >= 70) return 'Effective';
-        if ($score >= 50) return 'Progressing';
+        if ($score >= 85) return 'Advanced';
+        if ($score >= 70) return 'Developed';
+        if ($score >= 50) return 'Emerging';
 
-        return 'Foundational';
+        return 'Early Stage';
     }
 }

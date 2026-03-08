@@ -100,10 +100,7 @@ class Assessment extends Model
     }
 
     /**
-     * Semua responses berdasarkan dimensi.
-     * Catatan:
-     * - dimensi 1 biasanya global (cooperation_id null)
-     * - dimensi 2/3/4 biasanya melekat ke cooperation
+     * Semua responses berdasarkan dimensi (termasuk dimensi 1,2,3,4).
      */
     public function dimensionResponses(int $dimension)
     {
@@ -309,19 +306,13 @@ class Assessment extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | SCORING V2
+    | SCORING
     |--------------------------------------------------------------------------
-    |
-    | Sesuai instrumen terbaru:
-    | - Bagian A  = Dimensi 1 saja (readiness / kesiapan pengelolaan)
-    | - Bagian B  = Dimensi 2,3,4 (maturity / kematangan kerja sama)
-    | - Tidak ada lagi overall score gabungan 1-4
-    |
     */
 
     /**
      * Avg skor DIMENSI 1 (global assessment).
-     * Hanya indikator applicable (is_not_applicable = false).
+     * Hanya indikator applicable (is_not_applicable=false).
      */
     public function dimension1AvgScore(): ?float
     {
@@ -347,10 +338,6 @@ class Assessment extends Model
         return round($scores->avg(), 2);
     }
 
-    /**
-     * Nilai konversi Dimensi 1:
-     * skor rata-rata x 25
-     */
     public function dimension1ConvertedScore(): ?float
     {
         $avg = $this->dimension1AvgScore();
@@ -359,36 +346,8 @@ class Assessment extends Model
     }
 
     /**
-     * Alias yang lebih jelas untuk kebutuhan UI / API:
-     * score kesiapan pengelolaan = hasil Dimensi 1
-     */
-    public function readinessScore(): ?float
-    {
-        return $this->dimension1ConvertedScore();
-    }
-
-    /**
-     * Kategori kesiapan pengelolaan (Dimensi 1).
-     */
-    public function readinessCategory(): ?string
-    {
-        $score = $this->readinessScore();
-
-        if ($score === null) {
-            return null;
-        }
-
-        if ($score >= 85) return 'Institutionalised';
-        if ($score >= 70) return 'Established';
-        if ($score >= 50) return 'Developing';
-
-        return 'Initial';
-    }
-
-    /**
      * Agregasi dimensi 2/3/4 di level assessment:
-     * ambil nilai konversi tiap cooperation untuk dimensi tertentu,
-     * lalu dirata-ratakan antar cooperation.
+     * ambil nilai konversi dari setiap cooperation, lalu dirata-ratakan.
      */
     public function averageConvertedScoreForDimension(int $dimension): ?float
     {
@@ -431,69 +390,48 @@ class Assessment extends Model
     }
 
     /**
-     * Skor kematangan kerja sama pada level assessment:
-     * rata-rata nilai konversi dimensi 2, 3, dan 4.
-     *
-     * Catatan:
-     * Ini BUKAN gabungan dengan dimensi 1.
+     * Skor akhir assessment:
+     * (D1 + D2 + D3 + D4) / 4
      */
-    public function cooperationMaturityScore(): ?float
+    public function overallScore(): ?float
     {
+        $d1 = $this->dimension1ConvertedScore();
         $d2 = $this->dimension2ConvertedScore();
         $d3 = $this->dimension3ConvertedScore();
         $d4 = $this->dimension4ConvertedScore();
 
-        if ($d2 === null || $d3 === null || $d4 === null) {
+        if ($d1 === null || $d2 === null || $d3 === null || $d4 === null) {
             return null;
         }
 
-        return round((($d2 + $d3 + $d4) / 3), 2);
+        return round((($d1 + $d2 + $d3 + $d4) / 4), 2);
     }
 
-    /**
-     * Alias untuk UI/API.
-     */
-    public function maturityScore(): ?float
+    public function overallCategory(): ?string
     {
-        return $this->cooperationMaturityScore();
-    }
-
-    /**
-     * Kategori kematangan kerja sama (Dimensi 2-4).
-     */
-    public function cooperationMaturityCategory(): ?string
-    {
-        $score = $this->cooperationMaturityScore();
+        $score = $this->overallScore();
 
         if ($score === null) {
             return null;
         }
 
-        if ($score >= 85) return 'Transformative';
-        if ($score >= 70) return 'Effective';
-        if ($score >= 50) return 'Progressing';
+        if ($score >= 85) return 'Advanced';
+        if ($score >= 70) return 'Developed';
+        if ($score >= 50) return 'Emerging';
 
-        return 'Foundational';
+        return 'Early Stage';
     }
 
     /**
-     * Alias untuk UI/API.
-     */
-    public function maturityCategory(): ?string
-    {
-        return $this->cooperationMaturityCategory();
-    }
-
-    /**
-     * Distribusi kategori cooperation berdasarkan maturity score masing-masing cooperation.
+     * Distribusi kategori cooperation.
      */
     public function cooperationCategoryDistribution(): array
     {
         $base = [
-            'Foundational' => 0,
-            'Progressing' => 0,
-            'Effective' => 0,
-            'Transformative' => 0,
+            'Early Stage' => 0,
+            'Emerging' => 0,
+            'Developed' => 0,
+            'Advanced' => 0,
         ];
 
         $coops = $this->relationLoaded('cooperations')
@@ -506,7 +444,7 @@ class Assessment extends Model
                 continue;
             }
 
-            $cat = $this->maturityCategoryFromScore($score);
+            $cat = $this->categoryFromScore($score);
             $base[$cat] = ($base[$cat] ?? 0) + 1;
         }
 
@@ -514,36 +452,14 @@ class Assessment extends Model
     }
 
     /**
-     * Helper kategori maturity berdasarkan skor 0-100.
+     * Helper: kategori dari skor skala 0-100.
      */
-    private function maturityCategoryFromScore(float $score): string
+    private function categoryFromScore(float $score): string
     {
-        if ($score >= 85) return 'Transformative';
-        if ($score >= 70) return 'Effective';
-        if ($score >= 50) return 'Progressing';
+        if ($score >= 85) return 'Advanced';
+        if ($score >= 70) return 'Developed';
+        if ($score >= 50) return 'Emerging';
 
-        return 'Foundational';
-    }
-
-    /**
-     * Ringkasan hasil scoring untuk kebutuhan controller / resource / frontend.
-     */
-    public function scoringSummary(): array
-    {
-        return [
-            'readiness' => [
-                'score' => $this->readinessScore(),
-                'category' => $this->readinessCategory(),
-                'dimension_1_converted_score' => $this->dimension1ConvertedScore(),
-                'dimension_1_avg_score' => $this->dimension1AvgScore(),
-            ],
-            'maturity' => [
-                'score' => $this->cooperationMaturityScore(),
-                'category' => $this->cooperationMaturityCategory(),
-                'dimension_2_converted_score' => $this->dimension2ConvertedScore(),
-                'dimension_3_converted_score' => $this->dimension3ConvertedScore(),
-                'dimension_4_converted_score' => $this->dimension4ConvertedScore(),
-            ],
-        ];
+        return 'Early Stage';
     }
 }

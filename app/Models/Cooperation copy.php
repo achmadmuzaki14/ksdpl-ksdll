@@ -14,7 +14,6 @@ class Cooperation extends Model
     | Mass Assignment
     |--------------------------------------------------------------------------
     */
-
     protected $fillable = [
         'assessment_id',
         'title',
@@ -31,7 +30,6 @@ class Cooperation extends Model
     | Casting
     |--------------------------------------------------------------------------
     */
-
     protected $casts = [
         'start_date' => 'date',
         'end_date'   => 'date',
@@ -51,6 +49,35 @@ class Cooperation extends Model
     public function responses()
     {
         return $this->hasMany(Response::class);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Dimension Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public function dimensionResponses(int $dimension)
+    {
+        return $this->responses()
+            ->dimension($dimension)
+            ->with(['indicator', 'verification'])
+            ->orderBy('indicator_definition_id');
+    }
+
+    public function dimension2Responses()
+    {
+        return $this->dimensionResponses(2);
+    }
+
+    public function dimension3Responses()
+    {
+        return $this->dimensionResponses(3);
+    }
+
+    public function dimension4Responses()
+    {
+        return $this->dimensionResponses(4);
     }
 
     /*
@@ -76,49 +103,19 @@ class Cooperation extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | Dimension Responses
-    |--------------------------------------------------------------------------
-    */
-
-    public function dimensionResponses(int $dimension)
-    {
-        return $this->responses()
-            ->dimension($dimension)
-            ->with(['indicator','verification'])
-            ->orderBy('indicator_definition_id');
-    }
-
-    public function dimension2Responses()
-    {
-        return $this->dimensionResponses(2);
-    }
-
-    public function dimension3Responses()
-    {
-        return $this->dimensionResponses(3);
-    }
-
-    public function dimension4Responses()
-    {
-        return $this->dimensionResponses(4);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Scoring
+    | Scoring Logic
     |--------------------------------------------------------------------------
     */
 
     /**
-     * Hitung rata-rata skor indikator per dimensi (skala 1–4)
+     * Ambil rata-rata skor per dimensi (1–4 scale)
      */
     public function calculateDimensionScore(int $dimension): ?float
     {
         $responses = $this->responses()
             ->dimension($dimension)
-            ->with(['indicator','verification'])
-            ->get()
-            ->reject(fn ($r) => $r->is_not_applicable);
+            ->with('verification')
+            ->get();
 
         if ($responses->isEmpty()) {
             return null;
@@ -136,7 +133,7 @@ class Cooperation extends Model
     }
 
     /**
-     * Konversi skor 1–4 menjadi skala 0–100
+     * Konversi skor 1–4 menjadi 0–100
      */
     public function convertedScore(int $dimension): ?float
     {
@@ -149,18 +146,16 @@ class Cooperation extends Model
         return round($avg * 25, 2);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Cooperation Maturity
-    |--------------------------------------------------------------------------
-    */
-
     /**
-     * Skor kematangan kerja sama
-     * rata-rata dimensi 2,3,4
+     * Maturity Score Final (Average dimensi 2–4)
      */
     public function maturityScore(): ?float
     {
+        // OPTIONAL: tampilkan maturity hanya jika assessment verified
+        // if (!$this->assessment->isVerified()) {
+        //     return null;
+        // }
+
         $scores = collect([
             $this->convertedScore(2),
             $this->convertedScore(3),
@@ -175,7 +170,7 @@ class Cooperation extends Model
     }
 
     /**
-     * Kategori kematangan
+     * Maturity Category
      */
     public function maturityCategory(): ?string
     {
@@ -185,16 +180,16 @@ class Cooperation extends Model
             return null;
         }
 
-        if ($score >= 85) return 'Transformative';
-        if ($score >= 70) return 'Effective';
-        if ($score >= 50) return 'Progressing';
+        if ($score < 50) return 'Foundational';
+        if ($score < 70) return 'Progressing';
+        if ($score < 85) return 'Effective';
 
-        return 'Foundational';
+        return 'Transformative';
     }
 
     /*
     |--------------------------------------------------------------------------
-    | Progress Helpers
+    | Progress Helpers (UI Friendly)
     |--------------------------------------------------------------------------
     */
 
@@ -220,9 +215,7 @@ class Cooperation extends Model
             ->count();
 
         $needRevision = $this->responses()
-            ->whereHas('verification', function ($q) {
-                $q->where('status', 'need_revision');
-            })
+            ->whereHas('verification', fn ($q) => $q->where('status', 'need_revision'))
             ->count();
 
         return [

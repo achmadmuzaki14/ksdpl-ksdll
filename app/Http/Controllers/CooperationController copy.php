@@ -92,16 +92,13 @@ class CooperationController extends Controller
                 'evidence_links' => $r->evidence_links,
                 'is_not_applicable' => $r->is_not_applicable,
                 'is_complete' => $r->is_complete,
-
                 'can_edit' => auth()->user()?->can('update', $r) ?? false,
-
                 'indicator' => $r->indicator ? [
                     'id' => $r->indicator->id,
                     'dimension' => $r->indicator->dimension,
                     'code' => $r->indicator->code,
                     'title' => $r->indicator->title,
                 ] : null,
-
                 'verification' => $r->verification ? [
                     'id' => $r->verification->id,
                     'status' => $r->verification->status,
@@ -112,17 +109,12 @@ class CooperationController extends Controller
             ];
         };
 
-        $dim2 = $responses->get(2, collect())->map($mapResponse)->values();
-        $dim3 = $responses->get(3, collect())->map($mapResponse)->values();
-        $dim4 = $responses->get(4, collect())->map($mapResponse)->values();
-
         return Inertia::render('Assessments/CooperationShow', [
             'assessment' => $assessment->only([
                 'id',
                 'year',
                 'status',
             ]),
-
             'cooperation' => $cooperation->only([
                 'id',
                 'title',
@@ -134,17 +126,16 @@ class CooperationController extends Controller
                 'end_date',
             ]),
 
-            'dimension2' => $dim2,
-            'dimension3' => $dim3,
-            'dimension4' => $dim4,
+            'dimension2' => $responses->get(2, collect())->map($mapResponse)->values(),
+            'dimension3' => $responses->get(3, collect())->map($mapResponse)->values(),
+            'dimension4' => $responses->get(4, collect())->map($mapResponse)->values(),
 
-            'analytics' => [
-                'dimension2_score' => $cooperation->convertedScore(2),
-                'dimension3_score' => $cooperation->convertedScore(3),
-                'dimension4_score' => $cooperation->convertedScore(4),
-                'maturity_score' => $cooperation->maturityScore(),
-                'maturity_category' => $cooperation->maturityCategory(),
-            ],
+            'dimension2_score' => $cooperation->convertedScore(2),
+            'dimension3_score' => $cooperation->convertedScore(3),
+            'dimension4_score' => $cooperation->convertedScore(4),
+
+            'maturity_score' => $cooperation->maturityScore(),
+            'maturity_category' => $cooperation->maturityCategory(),
 
             'permissions' => [
                 'can_edit' => auth()->user()?->can('update', $assessment) ?? false,
