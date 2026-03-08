@@ -117,15 +117,15 @@ export default function AssessmentsIndex({
 
         <div className="mx-auto max-w-6xl px-6 py-8 space-y-8">
           {/* SUMMARY CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard label="Draft" value={stats.draft} />
             <StatCard label="Submitted" value={stats.submitted} />
             <StatCard label="Verified" value={stats.verified} />
             <StatCard label="Published" value={stats.published} />
-            <StatCard
+            {/* <StatCard
               label="Avg Score"
               value={stats.avg ? stats.avg.toFixed(1) : "—"}
-            />
+            /> */}
           </div>
 
           {/* FILTERS */}
@@ -161,8 +161,8 @@ export default function AssessmentsIndex({
                   <th className="p-4 text-left">Province</th>
                   <th className="p-4 text-left">City</th>
                   <th className="p-4 text-left">Status</th>
-                  <th className="p-4 text-left">Score</th>
-                  <th className="p-4 text-left">Coop</th>
+                  {/* <th className="p-4 text-left">Score</th> */}
+                  <th className="p-4 text-left">Cooperations</th>
                   {/* <th className="p-4 text-left">Progress</th> */}
                   <th className="p-4 text-right">Action</th>
                 </tr>
@@ -181,9 +181,9 @@ export default function AssessmentsIndex({
                       <StatusBadge status={a.status} />
                     </td>
 
-                    <td className="p-4">
+                    {/* <td className="p-4">
                       {formatScore(a.overall_score)}
-                    </td>
+                    </td> */}
 
                     <td className="p-4">{a.cooperations_count}</td>
 
